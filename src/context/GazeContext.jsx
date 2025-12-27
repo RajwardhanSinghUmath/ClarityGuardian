@@ -1,25 +1,56 @@
-import { createContext, useState, useContext, useEffect } from 'react';
+import { createContext, useState, useContext, useEffect, useRef } from 'react';
+import webgazer from 'webgazer';
 
 const GazeContext = createContext();
 
 export const GazeProvider = ({ children }) => {
   const [gaze, setGaze] = useState({ x: 0, y: 0, timestamp: 0 });
-  const [isMouseSim, setIsMouseSim] = useState(true); // Toggle for your testing!
+  const [isMouseSim, setIsMouseSim] = useState(true); 
+  const [isWebgazerReady, setIsWebgazerReady] = useState(false);
 
-  // MOUSE SIMULATION: This allows YOU to work before Member 1 is finished
   useEffect(() => {
-    if (!isMouseSim) return;
+    // --- 1. MOUSE SIMULATION MODE ---
+    if (isMouseSim) {
+      const handleMouseMove = (e) => {
+        setGaze({ x: e.clientX, y: e.clientY, timestamp: Date.now() });
+      };
+      window.addEventListener('mousemove', handleMouseMove);
+      
+      // Cleanup Mouse Listeners
+      return () => {
+        window.removeEventListener('mousemove', handleMouseMove);
+        // If we were using webgazer, stop it
+        webgazer.pause();
+      };
+    }
 
-    const handleMouseMove = (e) => {
-      setGaze({ x: e.clientX, y: e.clientY, timestamp: Date.now() });
-    };
+    // --- 2. WEBGAYER MODE ---
+    if (!isMouseSim) {
+      webgazer
+        .setGazeListener((data, timestamp) => {
+          if (data) {
+            setGaze({ x: data.x, y: data.y, timestamp });
+          }
+        })
+        .begin();
 
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
+      // Show the video and the red prediction dot
+      webgazer.showVideoPreview(true).showPredictionPoints(true);
+      
+      // Optional: Smooth the data (highly recommended for your logic)
+      webgazer.applyKalmanFilter(true); 
+
+      setIsWebgazerReady(true);
+
+      return () => {
+        webgazer.pause();
+        webgazer.showVideoPreview(false).showPredictionPoints(false);
+      };
+    }
   }, [isMouseSim]);
 
   return (
-    <GazeContext.Provider value={{ gaze, setGaze, isMouseSim, setIsMouseSim }}>
+    <GazeContext.Provider value={{ gaze, setGaze, isMouseSim, setIsMouseSim, isWebgazerReady }}>
       {children}
     </GazeContext.Provider>
   );

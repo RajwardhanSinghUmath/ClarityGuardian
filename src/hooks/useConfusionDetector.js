@@ -3,7 +3,7 @@ import { useGaze } from '../context/GazeContext.jsx';
 
 const DWELL_THRESHOLD_MS = 3000;
 const REGRESSION_LIMIT = 3;
-const SACCADE_THRESHOLD_PX = 300; // Distance for a "panic" jump
+const SACCADE_THRESHOLD_PX = 200; // Distance for a "panic" jump
 const SCANNING_LIMIT = 6;         // Number of jumps to trigger
 
 export const useConfusionDetector = (zones) => {

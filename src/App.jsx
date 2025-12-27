@@ -1,26 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { GazeProvider } from './context/GazeContext.jsx';
 import { useConfusionDetector } from './hooks/useConfusionDetector';
 import CheckoutForm from './features/CheckoutForm';
 import GazeDebugger from './components/GazeDebugger';
 
-// This is the "Main" content where the logic lives
 const MainApp = () => {
-  // 1. Define the "Interest Zones" for the Payment UI
-  // In a real app, these could be updated dynamically via refs
   const [zones, setZones] = useState([
     { id: 'price-summary', left: 0, right: 0, top: 0, bottom: 0 },
     { id: 'terms-checkbox', left: 0, right: 0, top: 0, bottom: 0 },
     { id: 'pay-button', left: 0, right: 0, top: 0, bottom: 0 }
   ]);
 
-  // 2. Initialize your Confusion Hook (Part 2)
-  const confusion = useConfusionDetector(zones);
+  // 1. Memoize zones so the object reference stays the same unless data changes
+  const memoizedZones = useMemo(() => zones, [zones]);
 
-  // 3. Callback to update zone coordinates from the UI (Part 3)
-  const handleZoneUpdate = (newZones) => {
-    setZones(newZones);
-  };
+  // 2. Initialize Hook with memoized zones
+  const confusion = useConfusionDetector(memoizedZones);
+
+  // 3. Use useCallback so this function doesn't trigger re-renders in children
+  const handleZoneUpdate = useCallback((newZones) => {
+    // Basic check to see if top coordinate changed (prevents micro-update loops)
+    setZones(prev => {
+      if (JSON.stringify(prev) === JSON.stringify(newZones)) return prev;
+      return newZones;
+    });
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
@@ -30,17 +34,13 @@ const MainApp = () => {
       </header>
 
       <main className="max-w-4xl mx-auto relative">
-        {/* The Checkout UI (Member 3's Work) */}
         <CheckoutForm 
           confusion={confusion} 
           onZonesReady={handleZoneUpdate} 
         />
-
-        {/* The Gaze Visualizer & HUD (For your testing) */}
-        <GazeDebugger zones={zones} />
+        <GazeDebugger zones={memoizedZones} />
       </main>
 
-      {/* Confusion Overlay/Notification */}
       {confusion.isConfused && (
         <div className="fixed top-5 left-1/2 -translate-x-1/2 animate-bounce bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 rounded shadow-lg z-50">
           <p className="font-bold">Clarity Insight:</p>
@@ -51,7 +51,6 @@ const MainApp = () => {
   );
 };
 
-// Root App Component
 function App() {
   return (
     <GazeProvider>
